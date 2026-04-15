@@ -1,11 +1,19 @@
 const express = require("express");
+const fixedWindow = require("./algorithms/fixedWindow");
 
 const app = express();
 
 app.use(express.json());
 
-// Stub route (VERY IMPORTANT — do not change yet)
-app.post("/check", (req, res) => {
+app.post("/check", async (req, res) => {
+  const { key, limit, window, algorithm } = req.body;
+
+  if (algorithm === "fixed-window") {
+    const result = await fixedWindow({ key, limit, window });
+    return res.status(result.allowed ? 200 : 429).json(result);
+  }
+
+  // fallback stub
   res.json({
     allowed: true,
     remaining: 99,
