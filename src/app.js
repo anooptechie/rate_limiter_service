@@ -1,5 +1,6 @@
 const express = require("express");
 const fixedWindow = require("./algorithms/fixedWindow");
+const slidingWindow = require("./algorithms/slidingWindow");
 
 const app = express();
 
@@ -10,6 +11,11 @@ app.post("/check", async (req, res) => {
 
   if (algorithm === "fixed-window") {
     const result = await fixedWindow({ key, limit, window });
+    return res.status(result.allowed ? 200 : 429).json(result);
+  }
+
+  if (algorithm === "sliding-window") {
+    const result = await slidingWindow({ key, limit, window });
     return res.status(result.allowed ? 200 : 429).json(result);
   }
 
