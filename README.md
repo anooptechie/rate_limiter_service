@@ -193,3 +193,59 @@ Token Bucket is widely used in:
 API gateways
 Cloud platforms (AWS, GCP)
 Rate-limited SaaS services
+
+🚀 Milestone 5 — Input Validation & Algorithm Routing
+🎯 Goal
+
+Refactor the API layer to follow clean architecture principles by introducing request validation and a scalable routing mechanism for different rate limiting algorithms.
+
+🧱 What was implemented
+Input validation using Zod:
+Enforced strict schema for incoming requests
+Validated fields:
+key, algorithm, limit, window, cost
+Rejected invalid requests with HTTP 400 and detailed error messages
+Validation middleware (validateRequest):
+Centralized validation logic
+Attached sanitized input to req.validated
+Prevented usage of untrusted req.body
+Algorithm Router (algorithmRouter):
+Mapped algorithm names to implementations:
+fixed-window
+sliding-window
+token-bucket
+Dynamically invoked correct algorithm based on request
+Route refactoring:
+Replaced conditional logic (if-else) with modular routing
+Introduced clean middleware chain:
+Validation → Routing → Response
+
+⚙️ Request Flow
+Client Request
+      ↓
+Validation Middleware (Zod)
+      ↓
+Algorithm Router
+      ↓
+Rate Limiting Algorithm
+      ↓
+Response (200 / 429 / 400)
+
+🧪 Verification
+Valid request:
+Routed correctly to respective algorithm
+Returned expected rate limiting response
+Invalid request:
+Missing or incorrect fields → HTTP 400
+Response includes field-level validation errors
+Edge cases tested:
+Missing key
+Invalid algorithm
+Negative or zero limit
+Missing request body
+
+⚠️ Important Implementation Details
+Used req.validated instead of req.body to ensure safe input handling
+Updated Zod error handling to use error.issues (latest API)
+Removed legacy stub route to avoid incorrect fallback behavior
+Ensured all algorithms are invoked through a single routing layer

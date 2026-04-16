@@ -42,19 +42,22 @@ async function slidingWindow({ key, limit, window: windowSeconds }) {
 
   const result = await redis.eval(
     SLIDING_WINDOW_LUA,
-    1, // number of keys
+    1,                // number of keys
     redisKey,
     now,
     windowMs,
     limit,
-    requestId,
+    requestId
   );
 
   const allowed = result[0] === 1;
   const value = Number(result[1]);
 
   if (!allowed) {
-    const retryAfter = Math.max(0, Math.ceil((value + windowMs - now) / 1000));
+    const retryAfter = Math.max(
+      0,
+      Math.ceil((value + windowMs - now) / 1000)
+    );
 
     return {
       allowed: false,

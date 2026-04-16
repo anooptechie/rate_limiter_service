@@ -46,7 +46,7 @@ async function tokenBucket({ key, limit: capacity, window, cost = 1 }) {
     capacity,
     refillRate,
     now,
-    cost
+    cost,
   );
 
   const allowed = result[0] === 1;
