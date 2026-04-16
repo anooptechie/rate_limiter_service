@@ -1,13 +1,14 @@
 const express = require("express");
 const fixedWindow = require("./algorithms/fixedWindow");
 const slidingWindow = require("./algorithms/slidingWindow");
+const tokenBucket = require("./algorithms/tokenBucket");
 
 const app = express();
 
 app.use(express.json());
 
 app.post("/check", async (req, res) => {
-  const { key, limit, window, algorithm } = req.body;
+  const { key, limit, window, algorithm, cost = 1 } = req.body;
 
   if (algorithm === "fixed-window") {
     const result = await fixedWindow({ key, limit, window });
@@ -16,6 +17,11 @@ app.post("/check", async (req, res) => {
 
   if (algorithm === "sliding-window") {
     const result = await slidingWindow({ key, limit, window });
+    return res.status(result.allowed ? 200 : 429).json(result);
+  }
+
+  if (algorithm === "token-bucket") {
+    const result = await tokenBucket({ key, limit, window, cost });
     return res.status(result.allowed ? 200 : 429).json(result);
   }
 
