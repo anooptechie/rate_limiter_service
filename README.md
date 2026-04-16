@@ -320,3 +320,118 @@ Ensured metrics include labels for better observability
 Used histogram buckets for latency tracking
 Handled errors with structured logging
 
+🧪 Testing Strategy
+🎯 Goal
+
+Ensure correctness of the rate limiter while keeping tests:
+
+Fast ⚡
+Deterministic 🎯
+CI-friendly 🤖
+🧱 Approach
+
+We follow a hybrid testing strategy:
+
+Layer	Type	Redis
+API (endpoints)	Integration tests	Mocked
+Algorithms (basic)	Behavioral tests	Mocked
+Algorithms (advanced)	Manual validation	Real Redis
+🔁 Redis Mocking
+Redis is mocked using an in-memory Map
+Implemented in:
+
+📁 tests/__mocks__/redis.js
+
+Applied globally via:
+
+📁 tests/setup.js
+
+✅ Why mock Redis?
+CI environments (e.g., GitHub Actions) do not provide Redis by default
+Avoids flaky tests due to network or connection issues
+Keeps tests fast and deterministic
+Focuses on application logic, not Redis internals
+🧪 Test Coverage
+✅ 1. API Tests (Integration)
+
+📁 tests/check.endpoint.test.js
+
+Covers:
+
+Missing fields → returns 400
+Invalid algorithm → returns 400
+Valid requests → routed correctly
+Response structure includes:
+allowed
+remaining
+retryAfter (when applicable)
+traceId
+✅ 2. Fixed Window Tests
+
+📁 tests/fixedWindow.test.js
+
+Covers:
+
+Requests within limit → allowed
+Different keys are isolated
+⚠️ 3. Sliding Window Tests
+
+📁 tests/slidingWindow.test.js
+
+Marked as skipped using describe.skip()
+⚠️ 4. Token Bucket Tests
+
+📁 tests/tokenBucket.test.js
+
+Marked as skipped using describe.skip()
+⚠️ Limitations of Mock-Based Testing
+
+Some algorithms rely on Redis-specific features:
+
+Algorithm	Dependency
+Sliding Window	Sorted Sets (ZSET) + Lua
+Token Bucket	Lua scripts + atomic updates
+Fixed Window (advanced)	TTL / expiration
+🚫 Why these tests are skipped
+
+The in-memory mock does NOT support:
+
+TTL (key expiration)
+Sorted Sets (ZSET)
+Lua scripts (EVAL)
+
+👉 Therefore:
+
+Behavior cannot be accurately simulated
+Tests would be misleading or incorrect
+✅ How correctness was validated
+All algorithms were tested manually against real Redis
+Verified using:
+curl requests
+Redis CLI (ZRANGE, HGETALL, etc.)
+🧠 Key Engineering Insight
+
+Not all distributed system behavior can be reliably unit tested.
+
+This project demonstrates:
+
+Proper use of mocks for CI-safe testing
+Awareness of system limitations
+Validation of critical logic against real infrastructure
+⚙️ Running Tests
+npm test
+📊 Expected Output
+PASS  tests/check.endpoint.test.js
+PASS  tests/fixedWindow.test.js
+PASS  tests/rateLimit.test.js
+SKIPPED tests/slidingWindow.test.js
+SKIPPED tests/tokenBucket.test.js
+💡 Design Decision
+
+Instead of forcing unrealistic mocks:
+
+We test what can be reliably validated
+We document what cannot
+We verify critical paths manually
+
+👉 This reflects real-world backend engineering practices
