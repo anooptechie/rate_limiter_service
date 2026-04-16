@@ -249,3 +249,74 @@ Used req.validated instead of req.body to ensure safe input handling
 Updated Zod error handling to use error.issues (latest API)
 Removed legacy stub route to avoid incorrect fallback behavior
 Ensured all algorithms are invoked through a single routing layer
+
+🚀 Milestone 6 — Observability (Logging, Metrics, Health Checks)
+🎯 Goal
+
+Enhance the service with observability features to make it production-ready by enabling monitoring, debugging, and performance analysis.
+
+🧱 What was implemented
+🧾 Structured Logging
+Integrated Pino HTTP logger
+Generated unique traceId for each request
+Logged:
+Algorithm used
+Request outcome (allowed/rejected)
+Errors with context
+
+📊 Metrics (Prometheus)
+Implemented metrics using prom-client
+Exposed /metrics endpoint for scraping
+
+Tracked metrics:
+
+rate_limiter_requests_total → Total requests
+rate_limiter_allowed_total → Allowed requests
+rate_limiter_rejected_total → Rejected requests
+rate_limiter_request_duration_seconds → Request latency
+
+All metrics include:
+
+algorithm label for granular analysis
+
+❤️ Health Check
+Enhanced /health endpoint:
+Verifies Redis connectivity
+Response format:
+{
+  "status": "ok",
+  "redis": "connected"
+}
+
+⚙️ Request Flow with Observability
+Incoming Request
+      ↓
+Assign traceId (logging middleware)
+      ↓
+Validation → Algorithm Router → Algorithm
+      ↓
+Metrics recorded (request, allowed/rejected, latency)
+      ↓
+Structured logs emitted
+      ↓
+Response returned with traceId
+
+🧪 Verification
+Logs
+Verified structured logs with traceId in terminal
+Metrics
+/metrics exposes Prometheus-compatible format
+Confirmed:
+request count increments
+allowed/rejected counters update correctly
+latency histogram records values
+Health Check
+/health returns Redis connection status
+
+⚠️ Important Implementation Details
+Used pino-http for automatic request logging
+Generated trace IDs using crypto.randomUUID()
+Ensured metrics include labels for better observability
+Used histogram buckets for latency tracking
+Handled errors with structured logging
+
