@@ -117,3 +117,79 @@ Accuracy	❌ Low	    ✅ High
 Boundary spike	❌ Yes	✅ No
 Complexity	✅ Simple	⚠️ Moderate
 Data stored	Counter	Individual requests
+
+🚀 Milestone 4 — Token Bucket Rate Limiting (with Weighted Cost)
+🎯 Goal
+
+Implement a flexible and production-grade rate limiting algorithm that allows burst traffic while maintaining a controlled long-term request rate.
+
+🧱 What was implemented
+Token Bucket algorithm using:
+Redis Hash to store:
+tokens → current available tokens
+lastRefill → last refill timestamp
+Lua script for atomic execution:
+Prevents race conditions under concurrent requests
+Continuous refill logic:
+refillRate = capacity / window
+Tokens added based on elapsed time
+Burst handling:
+Allows immediate requests up to bucket capacity
+Weighted cost support:
+Each request consumes configurable tokens (cost)
+
+⚙️ Algorithm Flow
+Fetch current bucket state (tokens, lastRefill)
+Calculate elapsed time and refill tokens
+Cap tokens at maximum capacity
+Check if enough tokens are available:
+If yes → consume tokens and allow
+If no → reject and calculate retryAfter
+Persist updated state in Redis
+
+🧪 Verification
+Burst Test (limit = 10):
+First 10 requests → allowed
+11th request → rejected
+Refill Test:
+After waiting a few seconds → requests allowed again
+Weighted Cost Test (cost = 5):
+Only 2 requests allowed
+3rd request rejected
+Redis Inspection:
+HGETALL ratelimit:token:{key} shows:
+tokens decreasing and refilling
+lastRefill updating correctly
+
+⚠️ Important Implementation Details
+Used seconds (not milliseconds) for refill calculations
+Handled cold start:
+New key initializes bucket at full capacity
+Used math.min to prevent token overflow
+Returned integer remaining while maintaining fractional tokens internally
+Applied TTL using:
+EXPIRE = capacity / refillRate
+
+🧠 Key Learnings
+Token Bucket supports:
+Burst traffic
+Smooth rate limiting
+Continuous refill enables:
+More natural traffic flow compared to fixed/sliding windows
+Weighted cost allows:
+Fair usage of expensive endpoints
+Atomic Lua execution is critical for correctness
+
+🔍 Comparison with Other Algorithms
+Feature	Fixed Window	Sliding Window	Token Bucket
+Burst support	❌	❌	✅
+Accuracy	❌	✅	✅
+Memory usage	✅ Low	❌ High	✅ Low
+Real-world usage	⚠️	⚠️	✅
+💡 Real-World Relevance
+
+Token Bucket is widely used in:
+
+API gateways
+Cloud platforms (AWS, GCP)
+Rate-limited SaaS services
