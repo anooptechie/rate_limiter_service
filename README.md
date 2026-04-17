@@ -336,6 +336,7 @@ Layer	Type	Redis
 API (endpoints)	Integration tests	Mocked
 Algorithms (basic)	Behavioral tests	Mocked
 Algorithms (advanced)	Manual validation	Real Redis
+
 🔁 Redis Mocking
 Redis is mocked using an in-memory Map
 Implemented in:
@@ -351,6 +352,7 @@ CI environments (e.g., GitHub Actions) do not provide Redis by default
 Avoids flaky tests due to network or connection issues
 Keeps tests fast and deterministic
 Focuses on application logic, not Redis internals
+
 🧪 Test Coverage
 ✅ 1. API Tests (Integration)
 
@@ -366,6 +368,7 @@ allowed
 remaining
 retryAfter (when applicable)
 traceId
+
 ✅ 2. Fixed Window Tests
 
 📁 tests/fixedWindow.test.js
@@ -392,6 +395,7 @@ Algorithm	Dependency
 Sliding Window	Sorted Sets (ZSET) + Lua
 Token Bucket	Lua scripts + atomic updates
 Fixed Window (advanced)	TTL / expiration
+
 🚫 Why these tests are skipped
 
 The in-memory mock does NOT support:
@@ -404,11 +408,13 @@ Lua scripts (EVAL)
 
 Behavior cannot be accurately simulated
 Tests would be misleading or incorrect
+
 ✅ How correctness was validated
 All algorithms were tested manually against real Redis
 Verified using:
 curl requests
 Redis CLI (ZRANGE, HGETALL, etc.)
+
 🧠 Key Engineering Insight
 
 Not all distributed system behavior can be reliably unit tested.
@@ -418,14 +424,17 @@ This project demonstrates:
 Proper use of mocks for CI-safe testing
 Awareness of system limitations
 Validation of critical logic against real infrastructure
+
 ⚙️ Running Tests
 npm test
+
 📊 Expected Output
 PASS  tests/check.endpoint.test.js
 PASS  tests/fixedWindow.test.js
 PASS  tests/rateLimit.test.js
 SKIPPED tests/slidingWindow.test.js
 SKIPPED tests/tokenBucket.test.js
+
 💡 Design Decision
 
 Instead of forcing unrealistic mocks:
@@ -435,3 +444,80 @@ We document what cannot
 We verify critical paths manually
 
 👉 This reflects real-world backend engineering practices
+
+Milestone 8 Load Testing (K6)
+
+🚀 Load Testing (k6)
+Test Configuration
+Load: 50 requests/sec
+Duration: 20 seconds
+Virtual Users: 20
+Algorithm: Fixed Window
+Limit: 10 requests per user per minute
+Results
+Metric	Value
+Total Requests	1001
+Allowed	200
+Rejected	801
+Avg Latency	5.57 ms
+p95 Latency	22.58 ms
+Key Observations
+System enforced rate limits accurately
+
+Maximum allowed requests matched theoretical limit:
+
+20 users × 10 requests = 200
+Excess traffic was correctly rejected with 429
+Latency remained low under sustained load
+Important Note
+High rejection rate (~80%) is expected behavior
+Indicates strict enforcement of rate limits, not system failure
+
+🔁 Sliding Window vs Fixed Window
+Observations
+Metric	Fixed Window	Sliding Window
+Allowed Requests	200	200
+Rejected Requests	801	801
+Avg Latency	5.57 ms	4.63 ms
+p95 Latency	22.58 ms	12.58 ms
+Key Insight
+Both algorithms enforce limits correctly
+Sliding Window shows better latency distribution
+Reduces burst effects at window boundaries
+Design Trade-off
+Algorithm	Trade-off
+Fixed Window	Simple but allows burst
+Sliding Window	More accurate but slightly complex
+
+🚀 FINAL Load Testing (k6)
+Configuration
+Load: 50 requests/sec
+Duration: 20 seconds
+Users: 20 (isolated keys)
+Limit: 10 requests/user
+Window: 60 seconds
+📊 Results
+Algorithm	Allowed	Rejected	Avg Latency	p95 Latency
+Fixed Window	200	801	5.57 ms	22.58 ms
+Sliding Window	200	801	4.63 ms	12.58 ms
+Token Bucket	260	740	5.10 ms	20.20 ms
+🧠 Key Observations
+Fixed Window
+Enforces strict limits
+Allows burst at window boundaries
+Sliding Window
+Smoother request distribution
+Lower tail latency (better p95)
+Token Bucket
+Allows burst + gradual refill
+Enables more requests over time
+Best suited for user-facing APIs
+🔥 Key Insight
+
+Token Bucket allowed more requests due to time-based refill:
+
+refill_rate = limit / window
+total_tokens = initial + (refill_rate × duration)
+
+This resulted in ~260 allowed requests instead of 200.
+
