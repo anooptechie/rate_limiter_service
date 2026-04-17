@@ -521,3 +521,168 @@ total_tokens = initial + (refill_rate × duration)
 
 This resulted in ~260 allowed requests instead of 200.
 
+🔗 Milestone 9 — Consumer Integration (Auth Service)
+🎯 Goal
+
+Integrate the Rate Limiter Service into a real backend system (Authentication Service) to:
+
+Protect login endpoints from brute-force attacks
+Enforce per-user and per-IP request limits
+Demonstrate service-to-service communication
+Implement resilient system behavior (fail-open)
+
+🏗️ Architecture Overview
+Client
+   ↓
+Auth Service (/login)
+   ↓
+Validation (email + password)
+   ↓
+Rate Limiter Service (/check)
+   ↓
+Decision (allowed / blocked)
+   ↓
+Auth Logic (DB, JWT, Audit Logs)
+⚙️ Implementation Details
+
+🔌 1. Rate Limiter Client
+
+📁 auth-service/src/utils/rateLimitClient.js
+
+Uses axios to call Rate Limiter Service
+Timeout configured to fail fast
+Handles both success and rejection responses
+Implements fail-open strategy
+Key behavior:
+- 200 → allowed
+- 429 → blocked
+- network failure → allow request (fail-open)
+
+🔐 2. Login Route Integration
+
+📁 auth-service/src/api/routes/auth.routes.js
+
+Rate limiting is applied before authentication logic:
+
+const rateLimitResult = await checkRateLimit({
+  key: `login:${normalizedEmail}:${req.ip}`,
+  algorithm: "token-bucket",
+  limit: 10,
+  window: 900,
+  cost: 1,
+});
+
+🧠 3. Key Design (Critical)
+login:${normalizedEmail}:${req.ip}
+Why this design?
+Prevents brute-force attacks per user
+Prevents abuse from shared IPs
+Ensures isolation between users
+
+🔄 4. Email Normalization
+const normalizedEmail = email.toLowerCase().trim();
+Why?
+
+Prevents bypass like:
+
+Test@Email.com ≠ test@email.com
+
+Ensures:
+
+Consistent rate limiting
+Consistent DB lookup
+No casing-based bypass
+
+⚡ 5. Algorithm Choice
+token-bucket
+Why token bucket?
+Allows short bursts (better UX)
+Prevents sustained abuse
+Models real-world login behavior
+
+🚫 6. Blocking Behavior
+
+When limit exceeded:
+
+{
+  "error": "Too many login attempts",
+  "retryAfter": 120
+}
+HTTP status: 429 Too Many Requests
+Includes retry hint
+
+🛡️ 7. Fail-Open Strategy (CRITICAL)
+
+If Rate Limiter Service is unavailable:
+
+return { allowed: true };
+Why?
+Prevents user-facing outages
+Keeps authentication system available
+Prioritizes availability over strict enforcement
+
+⚙️ 8. Execution Order (Important Design)
+1. Validate input
+2. Apply rate limiting
+3. Execute authentication logic
+Why this order?
+Avoids wasting tokens on invalid requests
+Protects database from unnecessary load
+Ensures efficient request handling
+
+📊 9. Observability
+Auth Service logs:
+login attempts
+success/failure
+trace IDs
+Rate Limiter logs:
+algorithm used
+allowed/rejected decisions
+response times
+
+🧪 Validation
+✅ Multi-user isolation
+Different users do NOT block each other
+Independent rate limits per user
+✅ Rate limiting enforced
+Requests allowed until limit
+Excess requests return 429
+✅ Token bucket behavior verified
+Burst allowed initially
+Requests rejected after tokens exhausted
+Refill enables future requests
+✅ Fail-open tested
+Rate limiter stopped → login still works
+
+🔥 Key Engineering Insights
+1. Distributed Rate Limiting
+
+Rate limiting is implemented as an external service:
+
+Decoupled from business logic
+Reusable across services
+Scalable independently
+2. Trade-off: Fail-Open vs Fail-Closed
+Strategy	Outcome
+Fail-Closed	Secure but breaks users
+Fail-Open	Slight risk but ensures availability
+
+👉 Chosen: Fail-Open
+
+3. User-Aware Rate Limiting
+
+Instead of IP-only:
+
+login:${email}:${ip}
+Prevents shared-IP issues
+Prevents account-targeted attacks
+4. Real-World Security Application
+
+Protects against:
+
+Brute-force attacks
+Credential stuffing
+Abuse of login endpoints
+
+🚀 Outcome
+"A production-ready distributed rate limiting system integrated into an authentication service"
