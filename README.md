@@ -686,3 +686,59 @@ Abuse of login endpoints
 
 🚀 Outcome
 "A production-ready distributed rate limiting system integrated into an authentication service"
+
+Milestone 10 🔍 Trace Propagation & Observability
+🎯 Overview
+
+The Rate Limiter Service supports distributed trace propagation by consuming and logging a shared traceId received from upstream services.
+
+⚙️ How It Works
+1. Receive Trace ID
+Extracted from request headers:
+x-trace-id
+2. Fallback Handling
+traceId = incoming header || req.id
+Ensures compatibility even if upstream service does not send traceId
+3. Logging
+
+Structured logs include:
+
+traceId
+algorithm
+allowed
+
+Example:
+
+{
+  "traceId": "7fe9215e-daf2-4e36-8e5d-7f5bcf0b7718",
+  "algorithm": "token-bucket",
+  "allowed": true
+}
+4. Response Propagation
+
+Trace ID is returned in API response:
+
+{
+  "traceId": "<same-trace-id>"
+}
+🔁 Request Flow
+Auth Service
+   ↓ (x-trace-id header)
+Rate Limiter Service
+   ↓
+Logs + Response include same traceId
+🧪 Validation
+Verified that:
+Incoming x-trace-id matches logged traceId
+Same ID is returned in response
+No new traceId is generated if one exists
+🧠 Key Design Principle
+
+Downstream services must never generate new trace IDs if one is already present.
+
+🚀 Benefits
+Enables cross-service log correlation
+Improves debugging of rate limiting decisions
+Supports distributed observability pipelines
+Aligns with production tracing patterns
+
