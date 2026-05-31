@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const requiredEnv = ["PORT", "REDIS_HOST", "REDIS_PORT"];
+const requiredEnv = ["PORT", "REDIS_HOST", "REDIS_PORT", "METRICS_PORT"];
 
 requiredEnv.forEach((key) => {
   if (!process.env[key]) {
@@ -12,6 +12,7 @@ const config = Object.freeze({
   port: process.env.PORT,
   redisHost: process.env.REDIS_HOST,
   redisPort: process.env.REDIS_PORT,
+  metricsPort: process.env.METRICS_PORT,
   nodeEnv: process.env.NODE_ENV || "development",
 });
 
