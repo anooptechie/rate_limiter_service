@@ -1,3 +1,4 @@
+require("./src/config/env"); 
 const app = require("./src/app");
 const express = require("express");
 const config = require("./src/config/env");
