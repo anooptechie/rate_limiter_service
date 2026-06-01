@@ -1,0 +1,481 @@
+{
+  "info": {
+    "name": "Rate Limiter Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "metricsUrl",
+      "value": "http://localhost:3001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Metrics",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Redis is connected', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ok');",
+                  "  pm.expect(body.redis).to.eql('connected');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health"
+          }
+        },
+        {
+          "name": "Metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Contains rate limiter metrics', () => {",
+                  "  pm.expect(pm.response.text()).to.include('rate_limiter_requests_total');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{metricsUrl}}/metrics"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fixed Window",
+      "item": [
+        {
+          "name": "Fixed Window — Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Request allowed', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.allowed).to.eql(true);",
+                  "  pm.expect(body.algorithm).to.eql('fixed-window');",
+                  "  pm.expect(body.remaining).to.be.a('number');",
+                  "  pm.expect(body.resetAt).to.be.a('number');",
+                  "  pm.expect(body.traceId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:fixed\",\n  \"algorithm\": \"fixed-window\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        },
+        {
+          "name": "Fixed Window — Rejected (run 6 times)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 429', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "});",
+                  "pm.test('Response has retryAfter when rejected', () => {",
+                  "  const body = pm.response.json();",
+                  "  if (!body.allowed) {",
+                  "    pm.expect(body.retryAfter).to.be.a('number');",
+                  "    pm.expect(body.remaining).to.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:fixed\",\n  \"algorithm\": \"fixed-window\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sliding Window",
+      "item": [
+        {
+          "name": "Sliding Window — Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Request allowed', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.allowed).to.eql(true);",
+                  "  pm.expect(body.algorithm).to.eql('sliding-window');",
+                  "  pm.expect(body.remaining).to.be.a('number');",
+                  "  pm.expect(body.resetAt).to.be.a('number');",
+                  "  pm.expect(body.traceId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:sliding\",\n  \"algorithm\": \"sliding-window\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        },
+        {
+          "name": "Sliding Window — Rejected (run 6 times)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 429', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "});",
+                  "pm.test('Response has retryAfter when rejected', () => {",
+                  "  const body = pm.response.json();",
+                  "  if (!body.allowed) {",
+                  "    pm.expect(body.retryAfter).to.be.a('number');",
+                  "    pm.expect(body.remaining).to.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:sliding\",\n  \"algorithm\": \"sliding-window\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Token Bucket",
+      "item": [
+        {
+          "name": "Token Bucket — Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Request allowed', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.allowed).to.eql(true);",
+                  "  pm.expect(body.algorithm).to.eql('token-bucket');",
+                  "  pm.expect(body.remaining).to.be.a('number');",
+                  "  pm.expect(body.resetAt).to.be.a('number');",
+                  "  pm.expect(body.traceId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:token\",\n  \"algorithm\": \"token-bucket\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        },
+        {
+          "name": "Token Bucket — Weighted Cost",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 429', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "});",
+                  "pm.test('Weighted cost response valid', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.algorithm).to.eql('token-bucket');",
+                  "  pm.expect(body.traceId).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:weighted\",\n  \"algorithm\": \"token-bucket\",\n  \"limit\": 5,\n  \"window\": 60,\n  \"cost\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Token Bucket — Rejected (run 6 times)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 429', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "});",
+                  "pm.test('Response has retryAfter when rejected', () => {",
+                  "  const body = pm.response.json();",
+                  "  if (!body.allowed) {",
+                  "    pm.expect(body.retryAfter).to.be.a('number');",
+                  "    pm.expect(body.remaining).to.eql(0);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:token\",\n  \"algorithm\": \"token-bucket\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trace Propagation",
+      "item": [
+        {
+          "name": "Trace Propagation — Custom traceId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('traceId matches sent header', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.traceId).to.eql('my-custom-trace-123');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-trace-id", "value": "my-custom-trace-123" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test:trace\",\n  \"algorithm\": \"token-bucket\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation",
+      "item": [
+        {
+          "name": "Validation — Invalid Algorithm",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Validation error response', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('Validation failed');",
+                  "  pm.expect(body.details).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test\",\n  \"algorithm\": \"invalid-algo\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        },
+        {
+          "name": "Validation — Missing Algorithm",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Validation error response', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('Validation failed');",
+                  "  pm.expect(body.details).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test\",\n  \"limit\": 5,\n  \"window\": 60\n}"
+            }
+          }
+        },
+        {
+          "name": "Validation — Negative Limit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Validation error response', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('Validation failed');",
+                  "  pm.expect(body.details).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"test\",\n  \"algorithm\": \"token-bucket\",\n  \"limit\": -1,\n  \"window\": 60\n}"
+            }
+          }
+        },
+        {
+          "name": "Validation — Empty Body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', () => {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Validation error response', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('Validation failed');",
+                  "  pm.expect(body.details).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
