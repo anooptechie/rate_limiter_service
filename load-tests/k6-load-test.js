@@ -6,7 +6,7 @@ const reqAllowed = new Counter("requests_allowed");
 const reqRejected = new Counter("requests_rejected");
 
 // 🔥 Change this per run
-const ALGORITHM = "fixed-window";
+const ALGORITHM = "token-bucket";
 
 export const options = {
   scenarios: {
